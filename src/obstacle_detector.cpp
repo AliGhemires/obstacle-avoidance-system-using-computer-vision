@@ -1,61 +1,54 @@
 #include "obstacle_detector.hpp"
 #include <opencv2/opencv.hpp>
-#include <iostream>
 #include <vector>
 
-// Constructor
 ObstacleDetector::ObstacleDetector() {
-    // Initialization code here.
+    // Constructor initialization if required
 }
 
-// Method to process the image and detect obstacles
 std::vector<cv::Rect> ObstacleDetector::detectObstacles(const cv::Mat& frame) {
-    std::vector<cv::Rect> detectedObstacles;
+    std::vector<cv::Rect> obstacles;
     cv::Mat gray, edges;
 
-    // Check if the input frame is empty
-    if (frame.empty()) {
-        std::cerr << "Error: Input frame is empty. \n";
-        return detectedObstacles;  // Return an empty list.
+    // Validate input frame for empty or invalid matrices
+    if (frame.empty() || frame.channels() != 3) {
+        std::cerr << "Invalid input frame. Skipping detection." << std::endl;
+        return obstacles;  // Return empty if frame is invalid
     }
 
-    // Convert the frame to grayscale
+    // Convert to grayscale
     cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
 
-    // Detect edges using Canny Algorithm
-    cv::Canny(gray, edges, 100, 200);
+    // Use Canny edge detection with error handling
+    try {
+        cv::Canny(gray, edges, 100, 200);
+    } catch (const cv::Exception& e) {
+        std::cerr << "Canny edge detection failed: " << e.what() << std::endl;
+        return obstacles;
+    }
 
-    // Find contours from the edges
+    // Find contours
     std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    cv::findContours(edges, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 
-    // Filter out the rectangles from contours
+    // Filter contours to get rectangular obstacles
     for (const auto& contour : contours) {
         cv::Rect boundingBox = cv::boundingRect(contour);
-        
-        // Add filtering logic based on bounding box properties
-        if (boundingBox.area() > 500) { // Minimum area threshold
-            if (boundingBox.width > 10 && boundingBox.height > 10) { // Minimum dimension threshold to reduce noise
-                detectedObstacles.push_back(boundingBox);
-            }
+        if (isValidObstacle(boundingBox)) {
+            obstacles.push_back(boundingBox);
         }
     }
 
-    return detectedObstacles;
+    return obstacles;
 }
 
-// Method to visualize detected obstacles on a frame
-void ObstacleDetector::drawObstacles(cv::Mat& frame, const std::vector<cv::Rect>& obstacles) {
-    if (!frame.empty() && !obstacles.empty()) {
-        for (const auto& obstacle : obstacles) {
-            cv::rectangle(frame, obstacle, cv::Scalar(0, 255, 0), 2);
-        }
-    } else {
-        std::cerr << "Warning: Empty frame or no obstacles to draw. \n";
-    }
-}
+bool ObstacleDetector::isValidObstacle(const cv::Rect& boundingBox) {
+    // Define thresholds for valid obstacles
+    const int minSize = 30;  // Minimum width and height of obstacles
+    const int maxSize = 200;  // Maximum width and height of obstacles
 
-// Destructor
-ObstacleDetector::~ObstacleDetector() {
-    // Cleanup code here if needed.
+    if (boundingBox.area() == 0) return false; // Eliminate zero-area contours
+
+    return (boundingBox.width >= minSize && boundingBox.height >= minSize &&
+            boundingBox.width <= maxSize && boundingBox.height <= maxSize);
 }

@@ -3,52 +3,45 @@
 #include <iostream>
 #include <chrono>
 
-ControlLogic::ControlLogic() : speed(0), steeringAngle(0) {}
+ControlLogic::ControlLogic(ObstacleDetector &detector) : detector(detector) {}
 
-void ControlLogic::update(int obstacleDistance) {
-    if (obstacleDistance <= 0) {
-        // Handle sanity check for non-positive distances
-        std::cout << "Invalid distance detected! Ignoring sensor data." << std::endl;
+void ControlLogic::processFrame(const cv::Mat &frame) {
+    // Step 1: Validate the input frame for empty or invalid matrices
+    if (frame.empty()) {
+        std::cerr << "Received empty frame, skipping processing." << std::endl;
         return;
     }
+
+    // Step 2: Perform obstacle detection using ObstacleDetector
+    std::vector<Obstacle> obstacles = detector.detectObstacles(frame);
     
-    if (obstacleDistance < SAFE_DISTANCE) {
-        // If the obstacle is within a safe distance, stop or avoid it.
-        speed = 0;
-        steeringAngle = MAX_STEERING_ANGLE;
-        std::cout << "Obstacle detected! Stopping and turning." << std::endl;
-    } else if (obstacleDistance < WARNING_DISTANCE) {
-        // If the obstacle is in warning distance, slow down and steer away.
-        speed = REDUCED_SPEED;
-        steeringAngle = STEERING_ANGLE;
-        std::cout << "Warning! Reducing speed and steering." << std::endl;
+    // Step 3: Decide on control actions based on detected obstacles
+    for (const auto &obstacle : obstacles) {
+        if (isObstacleInPath(obstacle)) {
+            executeAvoidanceManeuver(obstacle);
+        }
+    }
+}
+
+bool ControlLogic::isObstacleInPath(const Obstacle &obstacle) {
+    // Check if the detected obstacle is in the robot's path
+    // Include edge case for obstacle size and position further validation
+    // Example: Consider the obstacle width in decision
+    if (obstacle.position.x < safeDistance &&
+        obstacle.boundingBox.width > minimumObstacleWidth) {
+        return true;
+    }
+    return false;
+}
+
+void ControlLogic::executeAvoidanceManeuver(const Obstacle &obstacle) {
+    // A simple obstacle avoidance logic: move backward or turn based on obstacle position
+    // Consider edge scenarios such as obstacle size
+    if (obstacle.position.x < criticalDistance && obstacle.boundingBox.area() > criticalMinimumArea) {
+        // Example: Move backwards
+        std::cout << "Critical obstacle detected! Moving backward!\n";
     } else {
-        // If no obstacles are detected within a critical range, move forward at normal speed.
-        speed = NORMAL_SPEED;
-        steeringAngle = 0;
-        std::cout << "Path clear. Moving forward." << std::endl;
+        // Example: Turn
+        std::cout << "Turning to avoid obstacle at position: " << obstacle.position.x << "\n";
     }
-    applyControlActions();
-}
-
-void ControlLogic::applyControlActions() {
-    // Here we would send commands to the robot's actuators to control speed and steering.
-    // In this simulation, we merely print the intended actions.
-    if (speed < 0 || steeringAngle < -180 || steeringAngle > 180) {
-        // Sanity check for speed and steering values
-        std::cout << "Invalid control actions: Speed = " << speed 
-                  << ", Steering Angle = " << steeringAngle << " Ignored." << std::endl;
-        return;
-    }
-
-    std::cout << "Applying control actions: Speed = " << speed 
-              << ", Steering Angle = " << steeringAngle << std::endl;
-}
-
-int ControlLogic::getSpeed() const {
-    return speed;
-}
-
-int ControlLogic::getSteeringAngle() const {
-    return steeringAngle;
 }
