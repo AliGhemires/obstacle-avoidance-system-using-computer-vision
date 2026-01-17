@@ -1,0 +1,23 @@
+# Synthetic Data for Obstacle Avoidance System
+# Format: timestamp,x_position,y_position,obstacle_size
+
+# Edge Case: No movement
+0.0,1.0,2.0,0.5
+
+# Typical sequence
+0.5,1.5,2.5,0.7
+1.0,2.0,2.0,0.3
+
+# Edge Case: Large obstacle appears suddenly
+1.5,3.0,2.5,1.5
+2.0,2.0,3.0,0.4
+
+# Edge Case: Obstacle size diminishes quickly
+2.5,2.5,3.5,0.9
+3.0,3.0,4.0,0.1
+
+# Typical sequence
+3.5,3.5,4.5,0.2
+4.0,4.0,5.0,0.6
+
+# Edge Case: Sequence ends abruptly
